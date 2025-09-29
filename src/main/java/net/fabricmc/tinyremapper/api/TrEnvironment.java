@@ -18,6 +18,8 @@
 
 package net.fabricmc.tinyremapper.api;
 
+import org.objectweb.asm.ClassVisitor;
+
 public interface TrEnvironment {
 	int getMrjVersion();
 	TrRemapper getRemapper();
@@ -41,4 +43,6 @@ public interface TrEnvironment {
 	}
 
 	void propagate(TrMember member, String newName);
+
+	ClassVisitor createVisitor(String internalName, ClassVisitor delegate);
 }

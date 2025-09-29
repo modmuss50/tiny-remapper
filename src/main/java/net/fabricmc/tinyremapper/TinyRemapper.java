@@ -1112,7 +1112,19 @@ public class TinyRemapper {
 		ClassWriter writer = new ClassWriter(0);
 		int flags = removeFrames ? ClassReader.SKIP_FRAMES : ClassReader.EXPAND_FRAMES;
 
-		ClassVisitor visitor = writer;
+		ClassVisitor visitor = createVisitor(cls, writer);
+
+		reader.accept(visitor, flags);
+
+		// TODO: compute frames (-Xverify:all -XX:-FailOverToOldVerifier)
+
+		if (!keepInputData) cls.data = null;
+
+		return writer.toByteArray();
+	}
+
+	private ClassVisitor createVisitor(final ClassInstance cls, final ClassVisitor delegate) {
+		ClassVisitor visitor = delegate;
 
 		if (check) {
 			visitor = new CheckClassAdapter(visitor);
@@ -1129,13 +1141,7 @@ public class TinyRemapper {
 			visitor = preApplyVisitors.get(i).insertApplyVisitor(cls, visitor, cls.getInputTags());
 		}
 
-		reader.accept(visitor, flags);
-
-		// TODO: compute frames (-Xverify:all -XX:-FailOverToOldVerifier)
-
-		if (!keepInputData) cls.data = null;
-
-		return writer.toByteArray();
+		return visitor;
 	}
 
 	private byte[] fixClass(ClassInstance cls, byte[] data) {
@@ -1362,6 +1368,17 @@ public class TinyRemapper {
 			Set<ClassInstance> visitedDown = Collections.newSetFromMap(new IdentityHashMap<>());
 
 			Propagator.propagate(member, member.getId(), newName, visitedUp, visitedDown);
+		}
+
+		@Override
+		public ClassVisitor createVisitor(String internalName, ClassVisitor delegate) {
+			ClassInstance classInstance = getClass(internalName);
+
+			if (classInstance == null) {
+				throw new IllegalArgumentException("Class " + internalName + " not found in inputs");
+			}
+
+			return tr.createVisitor(classInstance, delegate);
 		}
 
 		final TinyRemapper tr;
